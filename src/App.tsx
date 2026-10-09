@@ -13,6 +13,7 @@ import { OrderStatusToastContainer } from './components/OrderStatusToastContaine
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { LiveUpdatesBanner } from './components/LiveUpdatesBanner';
 import { WebsiteUpdatesModal } from './components/WebsiteUpdatesModal';
+import { BottomNav } from './components/BottomNav';
 import SplashScreen from './components/SplashScreen';
 import { Footer } from './components/Footer';
 import { Language, PricingPlan, ServiceItem, VideoCategory, VideoOrder } from './types';
@@ -501,6 +502,20 @@ export default function App() {
 
       {/* Floating 24x7 WhatsApp Support Launcher */}
       <WhatsAppSupport lang={lang} />
+
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <BottomNav
+        lang={lang}
+        onOpenOrderModal={() => {
+          setSelectedPlanForOrder(null);
+          setCustomConfigForOrder(null);
+          setIsOrderModalOpen(true);
+        }}
+        onOpenTrackModal={() => {
+          setTrackSearchQuery('');
+          setIsTrackModalOpen(true);
+        }}
+      />
 
     </div>
     </>
