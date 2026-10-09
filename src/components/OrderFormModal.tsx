@@ -4,6 +4,7 @@ import { AspectRatioType, Language, MainCategory, PricingPlan, RawFileItem, Serv
 import { addOrder, calculateEstimatedPrice } from '../utils/storage';
 import { saveRawFile } from '../utils/fileStorage';
 import { GURUDEV_SERVICES } from '../data/initialData';
+import { PayNowButton } from './PayNowButton';
 
 interface OrderFormModalProps {
   isOpen: boolean;
@@ -52,8 +53,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [soundDesign, setSoundDesign] = useState(true);
   const [colorGrading, setColorGrading] = useState(true);
   
-  // Footage Upload
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'cloud_link'>('cloud_link');
+  // Footage Upload (Default: Direct Photo & Video File Upload)
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'cloud_link'>('file');
   const [cloudFootageUrl, setCloudFootageUrl] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
@@ -187,6 +188,20 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...filesArray]);
+    }
+  };
+
+  const handlePhotoFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...filesArray]);
+    }
+  };
+
+  const handleVideoFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...filesArray]);
@@ -391,7 +406,29 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-4 pt-2">
+                {/* Instant Online Payment via Razorpay */}
+                <div className="flex flex-col items-center justify-center p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2">
+                  <div className="text-xs text-amber-300 font-bold">
+                    {lang === 'gu'
+                      ? 'ઓનલાઇન પેમેન્ટ (Razorpay / UPI / Card):'
+                      : 'Online Payment (Razorpay / UPI / Card):'}
+                  </div>
+                  <PayNowButton
+                    amount={createdOrder.estimatedPrice}
+                    orderId={createdOrder.id}
+                    clientName={createdOrder.clientName}
+                    clientPhone={createdOrder.clientPhone}
+                    lang={lang}
+                    variant="primary"
+                  />
+                  <div className="text-[10px] text-neutral-400">
+                    {lang === 'gu'
+                      ? 'સુરક્ષિત પેમેન્ટ ગેટવે · ₹150 થી ₹2000'
+                      : 'Secure Payment Gateway · ₹150 to ₹2000'}
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <a
                     href={`https://wa.me/916353894486?text=${encodeURIComponent(
@@ -708,53 +745,134 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl bg-neutral-950 border border-dashed border-neutral-700 space-y-3 text-center">
-                    <input
-                      type="file"
-                      id="video-file-input"
-                      multiple
-                      accept="video/*,audio/*,image/*,.zip,.rar"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="video-file-input"
-                      className="cursor-pointer flex flex-col items-center justify-center p-4 hover:bg-neutral-900/50 rounded-lg transition-colors"
-                    >
-                      <Upload className="w-8 h-8 text-amber-400 mb-2" />
-                      <div className="text-xs font-semibold text-white">
-                        {lang === 'gu'
-                          ? 'વિડિયો ક્લિપ્સ / ઓડિયો ફાઇલ્સ અહીં ડ્રોપ કરો અથવા સિલેક્ટ કરો'
-                          : 'Click to select or drag raw video clips & assets'}
-                      </div>
-                      <div className="text-[11px] text-neutral-500 mt-1">
-                        MP4, MOV, MKV, WAV, ZIP સપોર્ટેડ (મલ્ટીપલ ફાઇલ્સ સિલેક્ટ કરી શકો છો)
-                      </div>
-                    </label>
-
-                    {selectedFiles.length > 0 && (
-                      <div className="text-left border-t border-neutral-800 pt-3 space-y-1.5 max-h-36 overflow-y-auto">
-                        <div className="text-[11px] text-amber-400 font-semibold">
-                          {selectedFiles.length} {lang === 'gu' ? 'ફાઇલ્સ પસંદ કરેલ:' : 'files selected:'}
+                  <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-4">
+                    {/* User requested: 📸 ફોટા પસંદ કરો & 🎥 વિડિયો પસંદ કરો */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {/* Photo Selector */}
+                      <div className="p-3.5 rounded-xl bg-neutral-900 border border-neutral-700/80 hover:border-amber-400/50 transition-all">
+                        <label
+                          htmlFor="photo-file-input"
+                          className="block text-xs font-bold text-neutral-100 mb-2 cursor-pointer flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>📸</span>
+                            <span>{lang === 'gu' ? 'ફોટા પસંદ કરો' : 'Select Photos'}</span>
+                          </span>
+                          {selectedFiles.filter((f) => f.type.startsWith('image/')).length > 0 && (
+                            <span className="text-[10px] text-amber-400 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                              {selectedFiles.filter((f) => f.type.startsWith('image/')).length} {lang === 'gu' ? 'ફોટા' : 'photos'}
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="file"
+                          id="photo-file-input"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoFilesChange}
+                          className="w-full text-xs text-neutral-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-400 file:text-neutral-950 hover:file:bg-amber-300 cursor-pointer bg-neutral-950 p-2 rounded-lg border border-neutral-800 focus:outline-none"
+                        />
+                        <div className="text-[10px] text-neutral-500 mt-1.5">
+                          JPG, PNG, WEBP, HEIC ({lang === 'gu' ? 'મલ્ટીપલ ફોટા સિલેક્ટ કરી શકો છો' : 'Multiple photos supported'})
                         </div>
-                        {selectedFiles.map((f, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between text-[11px] text-neutral-300 bg-neutral-900 px-2.5 py-1.5 rounded-md"
-                          >
-                            <span className="truncate max-w-[320px] font-mono">{f.name}</span>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-neutral-500">{(f.size / (1024 * 1024)).toFixed(1)} MB</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFile(i)}
-                                className="text-rose-400 hover:text-rose-300"
-                              >
-                                &times;
-                              </button>
-                            </div>
+                      </div>
+
+                      {/* Video Selector */}
+                      <div className="p-3.5 rounded-xl bg-neutral-900 border border-neutral-700/80 hover:border-amber-400/50 transition-all">
+                        <label
+                          htmlFor="video-file-input"
+                          className="block text-xs font-bold text-neutral-100 mb-2 cursor-pointer flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>🎥</span>
+                            <span>{lang === 'gu' ? 'વિડિયો પસંદ કરો' : 'Select Videos'}</span>
+                          </span>
+                          {selectedFiles.filter((f) => f.type.startsWith('video/')).length > 0 && (
+                            <span className="text-[10px] text-amber-400 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                              {selectedFiles.filter((f) => f.type.startsWith('video/')).length} {lang === 'gu' ? 'વિડિયો' : 'videos'}
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="file"
+                          id="video-file-input"
+                          accept="video/*"
+                          multiple
+                          onChange={handleVideoFilesChange}
+                          className="w-full text-xs text-neutral-300 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-400 file:text-neutral-950 hover:file:bg-amber-300 cursor-pointer bg-neutral-950 p-2 rounded-lg border border-neutral-800 focus:outline-none"
+                        />
+                        <div className="text-[10px] text-neutral-500 mt-1.5">
+                          MP4, MOV, MKV, AVI ({lang === 'gu' ? 'મલ્ટીપલ વિડિયો ક્લિપ્સ' : 'Multiple video clips'})
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Drag & Drop or General File Upload Zone */}
+                    <div className="border border-dashed border-neutral-700/80 rounded-xl p-3 text-center bg-neutral-900/40">
+                      <input
+                        type="file"
+                        id="general-file-input"
+                        multiple
+                        accept="video/*,audio/*,image/*,.zip,.rar"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="general-file-input"
+                        className="cursor-pointer flex items-center justify-center gap-2 text-xs text-neutral-400 hover:text-amber-400 transition-colors"
+                      >
+                        <Upload className="w-4 h-4 text-amber-400" />
+                        <span>{lang === 'gu' ? 'અથવા અન્ય ઓડિયો / ZIP ફાઇલ્સ પસંદ કરો' : 'Or select Audio / ZIP / Project files'}</span>
+                      </label>
+                    </div>
+
+                    {/* Selected Files List */}
+                    {selectedFiles.length > 0 && (
+                      <div className="text-left border-t border-neutral-800 pt-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-amber-400 font-semibold flex items-center gap-2">
+                            <span>
+                              {lang === 'gu' ? 'પસંદ કરેલી ફાઇલ્સ:' : 'Selected Files:'} {selectedFiles.length}
+                            </span>
+                            <span className="text-[11px] text-neutral-400 font-normal">
+                              ({selectedFiles.filter((f) => f.type.startsWith('image/')).length} 📸 ફોટા,{' '}
+                              {selectedFiles.filter((f) => f.type.startsWith('video/')).length} 🎥 વિડિયો)
+                            </span>
                           </div>
-                        ))}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFiles([])}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 underline"
+                          >
+                            {lang === 'gu' ? 'બધા કાઢી નાખો' : 'Clear All'}
+                          </button>
+                        </div>
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                          {selectedFiles.map((f, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between text-xs text-neutral-300 bg-neutral-900/90 border border-neutral-800 px-3 py-1.5 rounded-lg"
+                            >
+                              <div className="flex items-center gap-2 truncate max-w-[320px]">
+                                <span>{f.type.startsWith('image/') ? '📸' : f.type.startsWith('video/') ? '🎥' : '📁'}</span>
+                                <span className="truncate font-mono text-[11px]">{f.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                <span className="text-[11px] text-neutral-500 font-mono">
+                                  {(f.size / (1024 * 1024)).toFixed(1)} MB
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFile(i)}
+                                  className="w-5 h-5 flex items-center justify-center rounded-md bg-neutral-800 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 transition-colors"
+                                  title="Remove"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

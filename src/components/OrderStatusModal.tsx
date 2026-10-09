@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Search,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Language, OrderStatus, VideoOrder } from '../types';
 import { getStoredOrders, updateOrderStatus } from '../utils/storage';
+import { PayNowButton } from './PayNowButton';
 
 interface OrderStatusModalProps {
   isOpen: boolean;
@@ -84,6 +85,33 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [isRequestingRevision, setIsRequestingRevision] = useState(false);
 
+  const performSearch = useCallback(
+    (query: string) => {
+      setSearchError('');
+      const clean = query.trim().toUpperCase();
+      if (!clean) return;
+
+      const all = getStoredOrders();
+      const found = all.find(
+        (o) =>
+          o.id.toUpperCase() === clean ||
+          o.clientPhone.includes(clean) ||
+          o.clientName.toUpperCase().includes(clean)
+      );
+
+      if (found) {
+        setCurrentOrder(found);
+      } else {
+        setSearchError(
+          lang === 'gu'
+            ? `કોઈ ઓર્ડર મળ્યો નથી: "${query}". કૃપા કરીને સાચો Order ID (દા.ત. GC-2026-8801) અથવા મોબાઇલ નંબર લખો.`
+            : `No order found for "${query}". Please check the Order ID or phone number.`
+        );
+      }
+    },
+    [lang]
+  );
+
   useEffect(() => {
     if (initialSearchQuery) {
       setSearchInput(initialSearchQuery);
@@ -95,33 +123,26 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
         setCurrentOrder(all[0]);
       }
     }
-  }, [initialSearchQuery, isOpen]);
+  }, [initialSearchQuery, isOpen, performSearch]);
 
-  if (!isOpen) return null;
+  // Live-refresh modal data when admin updates any order status
+  useEffect(() => {
+    const handleOrderUpdated = () => {
+      if (!currentOrder) return;
+      const all = getStoredOrders();
+      const found = all.find((o) => o.id === currentOrder.id);
+      if (found) {
+        setCurrentOrder(found);
+      }
+    };
 
-  const performSearch = (query: string) => {
-    setSearchError('');
-    const clean = query.trim().toUpperCase();
-    if (!clean) return;
-
-    const all = getStoredOrders();
-    const found = all.find(
-      (o) =>
-        o.id.toUpperCase() === clean ||
-        o.clientPhone.includes(clean) ||
-        o.clientName.toUpperCase().includes(clean)
-    );
-
-    if (found) {
-      setCurrentOrder(found);
-    } else {
-      setSearchError(
-        lang === 'gu'
-          ? `કોઈ ઓર્ડર મળ્યો નથી: "${query}". કૃપા કરીને સાચો Order ID (દા.ત. GC-2026-8801) અથવા મોબાઇલ નંબર લખો.`
-          : `No order found for "${query}". Please check the Order ID or phone number.`
-      );
-    }
-  };
+    window.addEventListener('gurudev_order_status_updated', handleOrderUpdated);
+    window.addEventListener('gurudev_orders_updated', handleOrderUpdated);
+    return () => {
+      window.removeEventListener('gurudev_order_status_updated', handleOrderUpdated);
+      window.removeEventListener('gurudev_orders_updated', handleOrderUpdated);
+    };
+  }, [currentOrder]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,6 +192,8 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
     }
     setIsRequestingRevision(false);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/85 backdrop-blur-md overflow-y-auto">
@@ -287,7 +310,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                   </div>
                 </div>
 
-                <div className="sm:text-right shrink-0">
+                <div className="sm:text-right shrink-0 space-y-1.5">
                   <div className="text-xs text-neutral-400">
                     {lang === 'gu' ? 'અંદાજિત ભાવ' : 'Price Agreed'}
                   </div>
@@ -301,6 +324,18 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                       ? (lang === 'gu' ? 'એડવાન્સ ચુકવેલ' : 'Advance Paid')
                       : (lang === 'gu' ? 'ડિલિવરી સમયે પેમેન્ટ' : 'Pay on Delivery')}
                   </div>
+                  {currentOrder.paymentStatus !== 'paid' && (
+                    <div className="pt-1">
+                      <PayNowButton
+                        amount={currentOrder.finalPrice || currentOrder.estimatedPrice}
+                        orderId={currentOrder.id}
+                        clientName={currentOrder.clientName}
+                        clientPhone={currentOrder.clientPhone}
+                        lang={lang}
+                        variant="badge"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

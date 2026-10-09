@@ -1,5 +1,10 @@
 import { INITIAL_ORDERS } from '../data/initialData';
 import { OrderStatus, PaymentStatus, StatusLog, VideoCategory, VideoOrder } from '../types';
+import {
+  notifyOrderStatusUpdated,
+  recordUserPlacedOrderId,
+  isUserPlacedOrderId,
+} from './notifications';
 
 const STORAGE_KEY_ORDERS = 'gurudev_creative_orders_v1';
 const STORAGE_KEY_ADMIN = 'gurudev_creative_admin_auth';
@@ -119,6 +124,7 @@ export function addOrder(newOrderData: Omit<VideoOrder, 'id' | 'createdAt' | 'up
 
   const updated = [newOrder, ...current];
   saveOrders(updated);
+  recordUserPlacedOrderId(id);
   return newOrder;
 }
 
@@ -132,12 +138,14 @@ export function updateOrderStatus(
   const index = current.findIndex(o => o.id === orderId);
   if (index === -1) return null;
 
+  const oldStatus = current[index].status;
   const now = new Date().toISOString();
+  const noteText = logNote || `ઓર્ડર સ્ટેટસ અપડેટ: ${newStatus}`;
   const newLog: StatusLog = {
     id: `log-${Date.now()}`,
     status: newStatus,
     timestamp: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-    note: logNote || `ઓર્ડર સ્ટેટસ અપડેટ: ${newStatus}`,
+    note: noteText,
     updatedBy: 'Admin'
   };
 
@@ -151,6 +159,22 @@ export function updateOrderStatus(
 
   current[index] = updatedOrder;
   saveOrders([...current]);
+
+  // Alert users via real-time toast notification system
+  notifyOrderStatusUpdated({
+    orderId,
+    clientName: updatedOrder.clientName,
+    clientPhone: updatedOrder.clientPhone,
+    title: updatedOrder.title,
+    oldStatus,
+    newStatus,
+    note: noteText,
+    finalVideoUrl: updatedOrder.finalVideoUrl,
+    finalData: updatedOrder.finalData,
+    finalName: updatedOrder.finalName,
+    updatedBy: 'Admin'
+  });
+
   return updatedOrder;
 }
 

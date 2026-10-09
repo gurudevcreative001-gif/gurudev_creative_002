@@ -1,6 +1,6 @@
 {
   "name": "Gurudev Creative_002",
-  "description": "Professional Video Editing Order & Production Platform with instant order booking, footage upload, status tracking, admin management, and final video delivery (₹150 - ₹2000).",
+  "description": "Professional Video Editing Order & Production Platform with instant order booking, footage upload, real-time order status toast notifications, admin management, and final video delivery (₹150 - ₹2000).",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

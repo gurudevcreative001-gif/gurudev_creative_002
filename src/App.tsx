@@ -9,9 +9,15 @@ import { OrderStatusModal } from './components/OrderStatusModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { WhatsAppSupport, WhatsAppSupportSection } from './components/WhatsAppSupport';
+import { OrderStatusToastContainer } from './components/OrderStatusToastContainer';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { LiveUpdatesBanner } from './components/LiveUpdatesBanner';
+import { WebsiteUpdatesModal } from './components/WebsiteUpdatesModal';
+import SplashScreen from './components/SplashScreen';
 import { Footer } from './components/Footer';
 import { Language, PricingPlan, ServiceItem, VideoCategory, VideoOrder } from './types';
 import { isAdminAuthenticated } from './utils/storage';
+import { getNotificationHistory } from './utils/notifications';
 import {
   Upload,
   Clock,
@@ -47,6 +53,31 @@ export default function App() {
 
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+
+  // Notification Center
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  // Live Website Updates Modal
+  const [isUpdatesModalOpen, setIsUpdatesModalOpen] = useState(false);
+
+  useEffect(() => {
+    const updateCount = () => {
+      setNotificationCount(getNotificationHistory().length);
+    };
+    updateCount();
+    window.addEventListener('gurudev_order_status_updated', updateCount);
+    window.addEventListener('gurudev_notification_history_changed', updateCount);
+    return () => {
+      window.removeEventListener('gurudev_order_status_updated', updateCount);
+      window.removeEventListener('gurudev_notification_history_changed', updateCount);
+    };
+  }, []);
+
+  const handleViewOrder = (orderId: string) => {
+    setTrackSearchQuery(orderId);
+    setIsTrackModalOpen(true);
+  };
 
   // Sync admin authentication
   useEffect(() => {
@@ -121,8 +152,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-amber-400 selection:text-neutral-950">
+    <>
+      <SplashScreen />
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-amber-400 selection:text-neutral-950">
       
+      {/* Automatic Live Website Updates Banner */}
+      <LiveUpdatesBanner
+        lang={lang}
+        onOpenOrderModal={() => {
+          setSelectedPlanForOrder(null);
+          setCustomConfigForOrder(null);
+          setIsOrderModalOpen(true);
+        }}
+        onOpenUpdatesModal={() => setIsUpdatesModalOpen(true)}
+      />
+
       {/* Top Navigation */}
       <Navbar
         lang={lang}
@@ -138,6 +182,9 @@ export default function App() {
           setTrackSearchQuery('');
           setIsTrackModalOpen(true);
         }}
+        onOpenNotifications={() => setIsNotificationCenterOpen(true)}
+        notificationCount={notificationCount}
+        onOpenUpdatesModal={() => setIsUpdatesModalOpen(true)}
       />
 
       {/* Main Content */}
@@ -426,9 +473,36 @@ export default function App() {
         }}
       />
 
+      {/* 5. Real-Time Order Status Toast Notification Alert System */}
+      <OrderStatusToastContainer
+        lang={lang}
+        onViewOrder={handleViewOrder}
+      />
+
+      {/* 6. Notification Center History Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        lang={lang}
+        onViewOrder={handleViewOrder}
+      />
+
+      {/* 7. Live Website Updates & Announcements Modal */}
+      <WebsiteUpdatesModal
+        isOpen={isUpdatesModalOpen}
+        onClose={() => setIsUpdatesModalOpen(false)}
+        lang={lang}
+        onOpenOrderModal={() => {
+          setSelectedPlanForOrder(null);
+          setCustomConfigForOrder(null);
+          setIsOrderModalOpen(true);
+        }}
+      />
+
       {/* Floating 24x7 WhatsApp Support Launcher */}
       <WhatsAppSupport lang={lang} />
 
     </div>
+    </>
   );
 }

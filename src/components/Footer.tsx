@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Video, Shield, MessageSquare, Phone, Mail, MapPin } from 'lucide-react';
 import { Language } from '../types';
+import { LogoState, DEFAULT_LOGO_URL, getLogoState } from '../utils/logoManager';
 
 interface FooterProps {
   lang: Language;
@@ -15,6 +16,21 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenTrackModal,
   onOpenOrderModal,
 }) => {
+  const [logoState, setLogoState] = useState<LogoState>(getLogoState);
+
+  useEffect(() => {
+    const handleLogoUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<LogoState>;
+      if (customEvent.detail) {
+        setLogoState(customEvent.detail);
+      } else {
+        setLogoState(getLogoState());
+      }
+    };
+    window.addEventListener('gurudev:logo_updated', handleLogoUpdated);
+    return () => window.removeEventListener('gurudev:logo_updated', handleLogoUpdated);
+  }, []);
+
   return (
     <footer className="border-t border-neutral-800 bg-neutral-950 text-neutral-400 py-12 lg:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
@@ -24,9 +40,25 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <Video className="w-4 h-4" />
-              </div>
+              {logoState.mode !== 'none' && (
+                <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-amber-500/30 flex items-center justify-center overflow-hidden shrink-0">
+                  {logoState.mode === 'custom' && logoState.customUrl ? (
+                    <img
+                      src={logoState.customUrl}
+                      alt="Gurudev Creative Logo"
+                      className="w-full h-full object-cover rounded-lg"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <img
+                      src={DEFAULT_LOGO_URL}
+                      alt="Gurudev Creative Logo"
+                      className="w-full h-full object-cover rounded-lg"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                </div>
+              )}
               <span className="text-lg font-extrabold text-white">
                 Gurudev Creative<span className="text-amber-400">_002</span>
               </span>

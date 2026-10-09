@@ -18,6 +18,13 @@ import {
   DollarSign,
   FileText,
   Video,
+  Image as ImageIcon,
+  Megaphone,
+  Radio,
+  Sparkles,
+  AlertCircle,
+  Eye,
+  ArrowRight,
 } from 'lucide-react';
 import { Language, OrderStatus, PaymentStatus, VideoCategory, VideoOrder } from '../types';
 import {
@@ -29,6 +36,16 @@ import {
   updateOrderDetails,
   updateOrderStatus,
 } from '../utils/storage';
+import { notifyOrderStatusUpdated } from '../utils/notifications';
+import { LogoState, getLogoState, DEFAULT_LOGO_URL } from '../utils/logoManager';
+import {
+  WebsiteSettings,
+  WebsiteUpdateItem,
+  getWebsiteSettings,
+  publishWebsiteUpdate,
+  toggleWebsiteUpdateActive,
+} from '../utils/websiteUpdates';
+import { LogoModal } from './LogoModal';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -57,6 +74,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [finalFileSize, setFinalFileSize] = useState<string>('45 MB');
   const [finalPrice, setFinalPrice] = useState<number>(250);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
+
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteAllConfirmInput, setDeleteAllConfirmInput] = useState('');
+  const [deleteAllError, setDeleteAllError] = useState('');
+  const [logoState, setLogoState] = useState<LogoState>(getLogoState);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+
+  // Tab state: Orders vs Website Updates
+  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'updates'>('orders');
+
+  // Website Live Updates Editor state
+  const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettings>(getWebsiteSettings);
+  const [updateType, setUpdateType] = useState<'announcement' | 'offer' | 'notice' | 'urgent'>('announcement');
+  const [badgeGu, setBadgeGu] = useState('🔴 લાઇવ અપડેટ');
+  const [badgeEn, setBadgeEn] = useState('🔴 Live Update');
+  const [headlineGu, setHeadlineGu] = useState('Gurudev Creative_002: તમામ વિડિયો એડિટિંગ અને ગ્રાફિક ડિઝાઈનિંગ ઓર્ડર ચાલુ છે!');
+  const [headlineEn, setHeadlineEn] = useState('Gurudev Creative_002: All video editing and graphic designing orders are open!');
+  const [subTextGu, setSubTextGu] = useState('રીલ્સ, યુટ્યુબ વ્લોગ્સ, વેડિંગ ટીઝર અને ડિઝાઇન માત્ર ₹150 થી ₹2000. 24 કલાકમાં ફાસ્ટ ડિલિવરી.');
+  const [subTextEn, setSubTextEn] = useState('Reels, YouTube vlogs, wedding teasers & designs from ₹150 to ₹2000. Fast 24-hour delivery.');
+  const [actionTextGu, setActionTextGu] = useState('નવો ઓર્ડર નોંધાવો');
+  const [actionTextEn, setActionTextEn] = useState('Book New Order');
+  const [isUpdateActive, setIsUpdateActive] = useState(true);
 
   const refreshOrders = () => {
     const all = getStoredOrders();
@@ -88,12 +130,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [selectedOrder]);
 
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
-  const [deleteAllConfirmInput, setDeleteAllConfirmInput] = useState('');
-  const [deleteAllError, setDeleteAllError] = useState('');
+  useEffect(() => {
+    const handleLogoUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<LogoState>;
+      if (customEvent.detail) {
+        setLogoState(customEvent.detail);
+      } else {
+        setLogoState(getLogoState());
+      }
+    };
+    window.addEventListener('gurudev:logo_updated', handleLogoUpdated);
+    return () => window.removeEventListener('gurudev:logo_updated', handleLogoUpdated);
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -174,13 +222,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       updated = updateOrderStatus(selectedOrder.id, editStatus, defaultNote, commonUpdates);
     } else {
       updated = updateOrderDetails(selectedOrder.id, commonUpdates);
+      if (commonUpdates.finalData || commonUpdates.finalVideoUrl) {
+        notifyOrderStatusUpdated({
+          orderId: selectedOrder.id,
+          clientName: selectedOrder.clientName,
+          clientPhone: selectedOrder.clientPhone,
+          title: selectedOrder.title,
+          oldStatus: selectedOrder.status,
+          newStatus: selectedOrder.status,
+          note:
+            lang === 'gu'
+              ? 'એડિટ કરેલો ફાઇનલ વિડિયો ડાઉનલોડ માટે અપલોડ કરવામાં આવ્યો.'
+              : 'Edited final video has been uploaded and is ready for download.',
+          finalVideoUrl: commonUpdates.finalVideoUrl,
+          finalData: commonUpdates.finalData,
+          finalName: commonUpdates.finalName,
+          updatedBy: 'Admin',
+        });
+      }
     }
 
     if (updated) {
       refreshOrders();
       setSelectedOrder(updated);
       setLogNote('');
-      showToast(lang === 'gu' ? 'ઓર્ડર સફળતાપૂર્વક અપડેટ થયો!' : 'Order updated successfully!');
+      showToast(
+        lang === 'gu'
+          ? `ઓર્ડર ${selectedOrder.id} નું સ્ટેટસ અપડેટ થઈ ગયું અને યુઝરને ટોસ્ટ એલર્ટ મોકલાયું!`
+          : `Order ${selectedOrder.id} status updated & user toast alert broadcasted!`
+      );
     }
   };
 
@@ -213,8 +283,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Admin Top Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-neutral-950">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Film className="w-4 h-4" />
+            <div
+              onClick={() => setIsLogoModalOpen(true)}
+              className="w-8 h-8 rounded-lg bg-neutral-900 border border-amber-500/30 flex items-center justify-center overflow-hidden cursor-pointer hover:border-amber-400 transition-colors"
+              title={lang === 'gu' ? 'લોગો સેટિંગ્સ (Add / Remove Logo)' : 'Logo Settings'}
+            >
+              {logoState.mode === 'custom' && logoState.customUrl ? (
+                <img
+                  src={logoState.customUrl}
+                  alt="Logo"
+                  className="w-full h-full object-cover rounded-lg"
+                  referrerPolicy="no-referrer"
+                />
+              ) : logoState.mode === 'none' ? (
+                <Film className="w-4 h-4 text-neutral-500" />
+              ) : (
+                <img
+                  src={DEFAULT_LOGO_URL}
+                  alt="Official Logo"
+                  className="w-full h-full object-cover rounded-lg"
+                  referrerPolicy="no-referrer"
+                />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -234,6 +324,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLogoModalOpen(true)}
+              className="px-2.5 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
+              title={lang === 'gu' ? 'બ્રાન્ડ લોગો ઉમેરો અથવા કાઢી નાખો' : 'Add / Remove Brand Logo'}
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{lang === 'gu' ? 'લોગો સેટિંગ્સ' : 'Logo Settings'}</span>
+            </button>
+
             <button
               onClick={() => {
                 onOpenOrderModal();
@@ -910,6 +1009,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Brand Logo Add / Remove / Change Modal */}
+        <LogoModal
+          isOpen={isLogoModalOpen}
+          onClose={() => setIsLogoModalOpen(false)}
+          lang={lang}
+          logoState={logoState}
+        />
 
       </div>
     </div>
